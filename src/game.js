@@ -19,7 +19,8 @@ var config = {
 var game = new Phaser.Game(config);
 var score = 0;
 var scoreText;
-
+var gameOver = false;
+var player;
 
 function preload() {
   this.load.image("sky", "assets/sky.png");
@@ -42,11 +43,11 @@ function create() {
   platforms.create(50, 250, "ground");
   platforms.create(750, 220, "ground");
 
-  this.add.image(600, 400, "star").setOrigin(20, 15);
-
   player = this.physics.add.sprite(200, 150, 'dude');
   player.setBounce(0.2);
   player.setCollideWorldBounds(true);
+  
+  // Player animations
   this.anims.create({
     key: 'left',
     frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
@@ -65,8 +66,8 @@ function create() {
     repeat: -1
   });
   player.body.setGravityY(300)
-  this.physics.add.collider(player, platforms);
 
+  this.physics.add.collider(player, platforms);
 
   stars = this.physics.add.group({
     key: 'star',
@@ -75,10 +76,9 @@ function create() {
   });
 
   stars.children.iterate(function (child) {
-
     child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
-
   });
+
   this.physics.add.collider(stars, platforms);
   this.physics.add.overlap(player, stars, collectStar, null, this);
 
@@ -86,85 +86,86 @@ function create() {
   this.physics.add.collider(bombs, platforms);
   this.physics.add.collider(player, bombs, hitBomb, null, this);
 
-
-
-  function collectStar(player, star) {
-    star.disableBody(true, true);
-    scoreupdate = score
-    score += 10;
-    scoreText.setText('Score: ' + score);
-    if (score != scoreupdate) {
-
-      var x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
-
-      var bomb = bombs.create(x, 16, 'bomb');
-
-      bomb.setBounce(1);
-      bomb.setCollideWorldBounds(true);
-      bomb.setVelocity(Phaser.Math.Between(-200, 200), 30);
-
-
-
-      if (stars.countActive(true) === 0) {
-        this.physics.pause();
-
-        player.setTint(0x00FF00);
-
-        player.anims.play('turn');
-
-        gameOver = true;
-
-        this.add.text(200, 300, 'You Won', { fontSize: '100px', fill: '#000' });
-
-        this.add.buttoms(200, 300, "Restart", {})
-
-      }
-    }
-  }
-  scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#000' });
-
-
-
-  function hitBomb(player, bomb) {
-    this.physics.pause();
-
-    player.setTint(0xff0000);
-
-    player.anims.play('turn');
-
-    gameOver = true;
-    this.add.text(200, 300, 'Loser', { fontSize: '100px', fill: '#000' });
-
-  }
-
+  scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
 }
 
+function collectStar(player, star) {
+  star.disableBody(true, true);
+  scoreupdate = score
+  score += 10;
+  scoreText.setText('Score: ' + score);
+  if (score != scoreupdate) {
+
+    var x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
+
+    var bomb = bombs.create(x, 16, 'bomb');
+
+    bomb.setBounce(1);
+    bomb.setCollideWorldBounds(true);
+    bomb.setVelocity(Phaser.Math.Between(-200, 200), 30);
 
 
+  if (stars.countActive(true) === 0) {
+    this.physics.pause();
+    player.setTint(0x00FF00);
+    player.anims.play('turn');
+    gameOver = true;
+    this.add.text(200, 300, 'You Won', { fontSize: '100px', fill: '#000' });
+    createRestartButton.call(this);
+  }
+  }
+}
+
+function hitBomb(player) {
+  this.physics.pause();
+  player.setTint(0xff0000);
+  player.anims.play('turn');
+  gameOver = true;
+  this.add.text(200, 300, 'Loser', { fontSize: '100px', fill: '#000' });
+  createRestartButton.call(this);
+}
+
+function createRestartButton() {
+  var restartButton = this.add.text(300, 400, 'Restart', { fontSize: '32px', fill: '#fff' })
+    .setInteractive()
+    .on('pointerdown', () => { restart.call(this); })
+    .on('pointerover', () => {
+      restartButton.setStyle({ fill: '#ff0' }); // Change color on hover
+      restartButton.setFontSize(40); // Increase font size on hover
+    })
+    .on('pointerout', () => {
+      restartButton.setStyle({ fill: '#fff' }); // Reset color when not hovering
+      restartButton.setFontSize(32); // Reset font size
+    });
+}
+
+function restart() {
+  score = 0;
+  scoreText.setText('Score: ' + score);
+  gameOver = false;
+  this.scene.restart();
+}
 
 function update() {
 
+  var cursors = this.input.keyboard.createCursorKeys();
 
-  cursors = this.input.keyboard.createCursorKeys();
   if (cursors.left.isDown) {
     player.setVelocityX(-160);
-
     player.anims.play('left', true);
-  }
-  else if (cursors.right.isDown) {
+  } else if (cursors.right.isDown) {
     player.setVelocityX(160);
-
     player.anims.play('right', true);
-  }
-  else {
+  } else {
     player.setVelocityX(0);
-
     player.anims.play('turn');
   }
 
   if (cursors.up.isDown && player.body.touching.down) {
-    player.setVelocityY(-530);
+    player.setVelocityY(-470);
   }
 
-
+  if (this.input.keyboard.checkDown(this.input.keyboard.addKey('R'), 500) && gameOver) {
+    restart.call(this);
+  }
 }
